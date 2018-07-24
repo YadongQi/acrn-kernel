@@ -191,3 +191,4 @@ obj-$(CONFIG_MULTIPLEXER)	+= mux/
 obj-$(CONFIG_SDW)		+= sdw/
 obj-$(CONFIG_ACRN_VHM) 		+= vhm/
 obj-$(CONFIG_ACRN)		+= acrn/
+obj-$(CONFIG_IBPP)		+= ibpp/
