@@ -1,0 +1,11 @@
+#
+# ImageBootParam Parse
+#
+
+menu "Image Boot Param Parse"
+
+config IBPP
+	bool "Image Boot Param Parse"
+	depends on X86_64
+	default n
+endmenu

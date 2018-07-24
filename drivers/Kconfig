@@ -220,4 +220,6 @@ source "drivers/vbs/Kconfig"
 source "drivers/acrn/Kconfig"
 
 source "drivers/vhm/Kconfig"
+
+source "drivers/ibpp/Kconfig"
 endmenu
