@@ -1,0 +1,12 @@
+#
+# TEE Post Launch
+#
+
+menu "TEE Post Launch"
+
+config TEE_POST_LAUNCH
+	tristate "TEE Post Launch"
+	depends on X86_64
+	default n
+
+endmenu
