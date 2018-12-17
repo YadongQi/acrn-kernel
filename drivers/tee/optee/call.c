@@ -138,11 +138,16 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 	struct optee_rpc_param param = { };
 	struct optee_call_ctx call_ctx = { };
 	u32 ret;
+	static int do_cc = 0;
+	int cp = 0;
 
+	pr_err("%s(%d): cp=%d\n", __func__, do_cc, cp++);
 	param.a0 = OPTEE_SMC_CALL_WITH_ARG;
 	reg_pair_from_64(&param.a1, &param.a2, parg);
+	pr_err("%s(%d): cp=%d\n", __func__, do_cc, cp++);
 	/* Initialize waiter */
 	optee_cq_wait_init(&optee->call_queue, &w);
+	pr_err("%s(%d): cp=%d\n", __func__, do_cc, cp++);
 	while (true) {
 		struct arm_smccc_res res;
 
@@ -168,13 +173,17 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 		}
 	}
 
+	pr_err("%s(%d): cp=%d\n", __func__, do_cc, cp++);
 	optee_rpc_finalize_call(&call_ctx);
+	pr_err("%s(%d): cp=%d\n", __func__, do_cc, cp++);
 	/*
 	 * We're done with our thread in secure world, if there's any
 	 * thread waiters wake up one.
 	 */
 	optee_cq_wait_final(&optee->call_queue, &w);
+	pr_err("%s(%d): cp=%d\n", __func__, do_cc, cp++);
 
+	do_cc++;
 	return ret;
 }
 
@@ -292,26 +301,38 @@ int optee_close_session(struct tee_context *ctx, u32 session)
 	struct optee_msg_arg *msg_arg;
 	phys_addr_t msg_parg;
 	struct optee_session *sess;
+	static int cl_c = 0;
+	int cp = 0;
 
+	pr_err("%s(%d): cp=%d\n", __func__, cl_c, cp++);
 	/* Check that the session is valid and remove it from the list */
 	mutex_lock(&ctxdata->mutex);
+	pr_err("%s(%d): cp=%d\n", __func__, cl_c, cp++);
 	sess = find_session(ctxdata, session);
+	pr_err("%s(%d): cp=%d\n", __func__, cl_c, cp++);
 	if (sess)
 		list_del(&sess->list_node);
 	mutex_unlock(&ctxdata->mutex);
+	pr_err("%s(%d): cp=%d\n", __func__, cl_c, cp++);
 	if (!sess)
 		return -EINVAL;
 	kfree(sess);
+	pr_err("%s(%d): cp=%d\n", __func__, cl_c, cp++);
 
 	shm = get_msg_arg(ctx, 0, &msg_arg, &msg_parg);
 	if (IS_ERR(shm))
 		return PTR_ERR(shm);
+	pr_err("%s(%d): cp=%d\n", __func__, cl_c, cp++);
 
 	msg_arg->cmd = OPTEE_MSG_CMD_CLOSE_SESSION;
 	msg_arg->session = session;
+	pr_err("%s(%d): cp=%d\n", __func__, cl_c, cp++);
 	optee_do_call_with_arg(ctx, msg_parg);
+	pr_err("%s(%d): cp=%d\n", __func__, cl_c, cp++);
 
 	tee_shm_free(shm);
+	pr_err("%s(%d): cp=%d\n", __func__, cl_c, cp++);
+	cl_c ++;
 	return 0;
 }
 
@@ -541,6 +562,8 @@ static bool is_normal_memory(pgprot_t p)
 	return (pgprot_val(p) & L_PTE_MT_MASK) == L_PTE_MT_WRITEALLOC;
 #elif defined(CONFIG_ARM64)
 	return (pgprot_val(p) & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_NORMAL);
+#elif defined(CONFIG_X86_64)
+	return true;
 #else
 #error "Unuspported architecture"
 #endif

@@ -89,16 +89,21 @@ static ulong alloc_tee_mem(void)
 #endif
 }
 
-static int read_tee_binary(const char *path, void *out, loff_t *size)
+static void *read_tee_binary(const char *path, loff_t *size)
 {
 	int rc;
 	loff_t file_size;
-	rc = kernel_read_file_from_path(path, &out, &file_size, 0, READING_MODULE);
+	void *data;
+	rc = kernel_read_file_from_path(path, &data, &file_size, 0, READING_MODULE);
+	if (rc < 0) {
+		pr_err("Unable to open file: %s (%d)\n", path, rc);
+		return NULL;
+	}
 
 	if (size)
 		*size = file_size;
 
-	return rc;
+	return data;
 }
 
 static int relocate_tee_binary(void *in, size_t in_size, void *out, size_t out_size, uint64_t *entry)
@@ -111,6 +116,12 @@ static int relocate_tee_binary(void *in, size_t in_size, void *out, size_t out_s
 	return rc;
 #endif
 	uint8_t *ptr = (uint8_t *)in;
+
+	if (!in || !out) {
+		pr_err("Invalid input params\n");
+		return -EINVAL;
+	}
+
 	memcpy(out, ptr + 0x100000, in_size - 0x100000);
 	*entry = 0x12300000ULL;
 	pr_err("relocate succeed, entry=%llx(%llx), pa=%llx\n", *entry, virt_to_phys((void *)(*entry)), virt_to_phys(out));
@@ -128,12 +139,12 @@ static int __init post_launch_init(void)
 	uint64_t entry;
 	struct tee_boot_param boot_param;
 
-	rc = read_tee_binary(tee_elf_path, data, &size);
-	if (rc < 0) {
-		pr_err("Unable to open file: %s (%d)\n", tee_elf_path, rc);
+	data = read_tee_binary(tee_elf_path, &size);
+	if (!data) {
+		pr_err("Failed to read tee binary!\n");
 		goto err;
 	}
-	pr_info("read tee file succeed from %s, (%llx)\n", tee_elf_path, size);
+	pr_err("read tee file succeed from %s, (%llx)\n", tee_elf_path, size);
 
 	tee_rt_mem_pa = alloc_tee_mem();
 	if (!tee_rt_mem_pa) {
@@ -146,6 +157,8 @@ static int __init post_launch_init(void)
 		pr_err("remap tee memory failed!\n");
 		goto err;
 	}
+
+	pr_err("data=%llx, va=%llx, pa=%llx, size=%lx\n", (u64)data, (u64)tee_rt_mem_va, tee_rt_mem_pa, size);
 
 	rc = relocate_tee_binary(data, size, tee_rt_mem_va, TEE_RUNTIME_SIZE, &entry);
 	if (rc < 0) {

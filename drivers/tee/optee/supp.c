@@ -91,7 +91,10 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 	struct optee_supp_req *req = kzalloc(sizeof(*req), GFP_KERNEL);
 	bool interruptable;
 	u32 ret;
+	static int su_c = 0;
+	int ck = 0;
 
+	pr_err("%s(%d): enter\n", __func__, su_c);
 	if (!req)
 		return TEEC_ERROR_OUT_OF_MEMORY;
 
@@ -100,14 +103,17 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 	req->num_params = num_params;
 	req->param = param;
 
+	pr_err("%s(%d): checkpoint=%d\n", __func__, su_c, ck++);
 	/* Insert the request in the request list */
 	mutex_lock(&supp->mutex);
 	list_add_tail(&req->link, &supp->reqs);
 	mutex_unlock(&supp->mutex);
 
+	pr_err("%s(%d): checkpoint=%d\n", __func__, su_c, ck++);
 	/* Tell an eventual waiter there's a new request */
 	complete(&supp->reqs_c);
 
+	pr_err("%s(%d): checkpoint=%d\n", __func__, su_c, ck++);
 	/*
 	 * Wait for supplicant to process and return result, once we've
 	 * returned from wait_for_completion(&req->c) successfully we have
@@ -141,6 +147,8 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 			break;
 		}
 	}
+
+	pr_err("%s(%d): Return\n", __func__, su_c++);
 
 	ret = req->ret;
 	kfree(req);

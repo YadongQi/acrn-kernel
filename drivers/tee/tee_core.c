@@ -93,8 +93,11 @@ void teedev_ctx_put(struct tee_context *ctx)
 
 static void teedev_close_context(struct tee_context *ctx)
 {
+	pr_err("%s: 1\n", __func__);
 	tee_device_put(ctx->teedev);
+	pr_err("%s: 2\n", __func__);
 	teedev_ctx_put(ctx);
+	pr_err("%s: 3\n", __func__);
 }
 
 static int tee_open(struct inode *inode, struct file *filp)
@@ -111,7 +114,9 @@ static int tee_open(struct inode *inode, struct file *filp)
 
 static int tee_release(struct inode *inode, struct file *filp)
 {
+	pr_err("%s: enter\n", __func__);
 	teedev_close_context(filp->private_data);
+	pr_err("%s: context close done\n", __func__);
 	return 0;
 }
 
@@ -380,6 +385,7 @@ static int tee_ioctl_invoke(struct tee_context *ctx,
 	struct tee_ioctl_invoke_arg arg;
 	struct tee_ioctl_param __user *uparams = NULL;
 	struct tee_param *params = NULL;
+	static int i_c = 0;
 
 	if (!ctx->teedev->desc->ops->invoke_func)
 		return -EINVAL;
@@ -409,9 +415,11 @@ static int tee_ioctl_invoke(struct tee_context *ctx,
 			goto out;
 	}
 
+	pr_err("%s: ioctl invoke(%d)\n", __func__, i_c);
 	rc = ctx->teedev->desc->ops->invoke_func(ctx, &arg, params);
 	if (rc)
 		goto out;
+	pr_err("%s: ioctl invoke(%d) done\n", __func__, i_c++);
 
 	if (put_user(arg.ret, &uarg->ret) ||
 	    put_user(arg.ret_origin, &uarg->ret_origin)) {
@@ -451,12 +459,19 @@ tee_ioctl_close_session(struct tee_context *ctx,
 			struct tee_ioctl_close_session_arg __user *uarg)
 {
 	struct tee_ioctl_close_session_arg arg;
+	static int io_clc = 0;
+	int cp = 0;
 
+	pr_err("%s(%d): cp=%d\n", __func__, io_clc, cp++);
 	if (!ctx->teedev->desc->ops->close_session)
 		return -EINVAL;
+	pr_err("%s(%d): cp=%d\n", __func__, io_clc, cp++);
 
 	if (copy_from_user(&arg, uarg, sizeof(arg)))
 		return -EFAULT;
+	pr_err("%s(%d): cp=%d\n", __func__, io_clc, cp++);
+
+	io_clc ++;
 
 	return ctx->teedev->desc->ops->close_session(ctx, arg.session);
 }
@@ -649,27 +664,41 @@ static long tee_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct tee_context *ctx = filp->private_data;
 	void __user *uarg = (void __user *)arg;
+	static int t_ioc = 0;
+	int cp = 0;
 
+	pr_err("%s(%d): cmd=0x%x cp=%d\n", __func__, t_ioc, cmd, cp++);
+	t_ioc++;
 	switch (cmd) {
 	case TEE_IOC_VERSION:
+		pr_err("%s(%d): cmd=TEE_IOC_VERSION\n", __func__, t_ioc);
 		return tee_ioctl_version(ctx, uarg);
 	case TEE_IOC_SHM_ALLOC:
+		pr_err("%s(%d): cmd=TEE_IOC_SHM_ALLOC\n", __func__, t_ioc);
 		return tee_ioctl_shm_alloc(ctx, uarg);
 	case TEE_IOC_SHM_REGISTER:
+		pr_err("%s(%d): cmd=TEE_IOC_SHM_REGISTER\n", __func__, t_ioc);
 		return tee_ioctl_shm_register(ctx, uarg);
 	case TEE_IOC_OPEN_SESSION:
+		pr_err("%s(%d): cmd=TEE_IOC_OPEN_SESSION\n", __func__, t_ioc);
 		return tee_ioctl_open_session(ctx, uarg);
 	case TEE_IOC_INVOKE:
+		pr_err("%s(%d): cmd=TEE_IOC_INVOKE\n", __func__, t_ioc);
 		return tee_ioctl_invoke(ctx, uarg);
 	case TEE_IOC_CANCEL:
+		pr_err("%s(%d): cmd=TEE_IOC_CANCEL\n", __func__, t_ioc);
 		return tee_ioctl_cancel(ctx, uarg);
 	case TEE_IOC_CLOSE_SESSION:
+		pr_err("%s(%d): cmd=TEE_IOC_CLOSE_SESSION\n", __func__, t_ioc);
 		return tee_ioctl_close_session(ctx, uarg);
 	case TEE_IOC_SUPPL_RECV:
+		pr_err("%s(%d): cmd=TEE_IOC_SUPPL_RECV\n", __func__, t_ioc);
 		return tee_ioctl_supp_recv(ctx, uarg);
 	case TEE_IOC_SUPPL_SEND:
+		pr_err("%s(%d): cmd=TEE_IOC_SUPPL_SEND\n", __func__, t_ioc);
 		return tee_ioctl_supp_send(ctx, uarg);
 	default:
+		pr_err("%s(%d): Invalid IOCTL\n", __func__, t_ioc);
 		return -EINVAL;
 	}
 }

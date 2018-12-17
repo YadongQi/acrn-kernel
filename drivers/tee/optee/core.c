@@ -466,6 +466,7 @@ optee_config_shm_memremap(optee_invoke_fn *invoke_fn, void **memremaped_shm,
 		pr_err("shared memory ioremap failed\n");
 		return ERR_PTR(-EINVAL);
 	}
+	pr_err("optee: shmem remap success, pa=%llx, va=%llx, size=%lx\n", paddr, (u64)va, size);
 	vaddr = (unsigned long)va;
 
 	/*
@@ -516,7 +517,7 @@ err_memunmap:
 struct optee_smc_interface {
     unsigned long args[5];
 };
-
+#if 0
 static void optee_smc(void *args)
 {
     struct optee_smc_interface *p_args = args;
@@ -528,6 +529,25 @@ static void optee_smc(void *args)
      "d"(p_args->args[2]), "b"(p_args->args[3]), "c"(p_args->args[4])
     );
 }
+#else
+#define OPTEE_HCALL_WORLD_SWITCH 0x80000071UL
+static void optee_smc(void *args)
+{
+	struct optee_smc_interface *p_args = args;
+	int ret;
+	register signed long smc_id asm("r8") = OPTEE_HCALL_WORLD_SWITCH;
+	__asm__ __volatile__(
+			"vmcall;"
+			: "+D"(p_args->args[0]), "+S"(p_args->args[1]),
+			  "+d"(p_args->args[2]), "+b"(p_args->args[3]), "=a"(ret)
+			: "r"(smc_id), "D"(p_args->args[0]), "S"(p_args->args[1]),
+			  "d"(p_args->args[2]), "b"(p_args->args[3]), "c"(p_args->args[4])
+	);
+
+	if (ret < 0)
+		pr_err("Failed SMC HC to SWorld!\n");
+}
+#endif
 
 /* Simple wrapper functions to be able to use a function pointer */
 static void optee_smccc_smc(unsigned long a0, unsigned long a1,
@@ -538,6 +558,7 @@ static void optee_smccc_smc(unsigned long a0, unsigned long a1,
 {
     int ret = 0;
     struct optee_smc_interface s;
+    static int smccc = 0;
 
     s.args[0] = a0;
     s.args[1] = a1;
@@ -546,10 +567,13 @@ static void optee_smccc_smc(unsigned long a0, unsigned long a1,
     //TODO: need to consider 32bit transfer
     s.args[4] = a5 << 32 | a4;
     
+    pr_err("%s: enter SW(%d)\n", __func__, smccc);
     ret = smp_call_function_single(0, optee_smc, (void *)&s, 1);
     if (ret) {
         pr_err("%s: smp_call_function_single failed: %d\n", __func__, ret);
     }
+    pr_err("%s: back NW(%d)\n", __func__, smccc);
+    smccc ++;
 
     res->a0 = s.args[0];
     res->a1 = s.args[1];

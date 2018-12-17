@@ -153,9 +153,11 @@ static void handle_rpc_supp_cmd(struct tee_context *ctx,
 				struct optee_msg_arg *arg)
 {
 	struct tee_param *params;
+	static int supp_c = 0;
 
 	arg->ret_origin = TEEC_ORIGIN_COMMS;
 
+	pr_err("%s(%d): enter\n", __func__, supp_c);
 	params = kmalloc_array(arg->num_params, sizeof(struct tee_param),
 			       GFP_KERNEL);
 	if (!params) {
@@ -168,11 +170,14 @@ static void handle_rpc_supp_cmd(struct tee_context *ctx,
 		goto out;
 	}
 
+	pr_err("%s(%d): check 1\n", __func__, supp_c);
 	arg->ret = optee_supp_thrd_req(ctx, arg->cmd, arg->num_params, params);
+	pr_err("%s(%d): check 1 pass\n", __func__, supp_c);
 
 	if (optee_to_msg_param(arg->params, arg->num_params, params))
 		arg->ret = TEEC_ERROR_BAD_PARAMETERS;
 out:
+	pr_err("%s(%d): out\n", __func__, supp_c++);
 	kfree(params);
 }
 
@@ -367,6 +372,7 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 				struct optee_call_ctx *call_ctx)
 {
 	struct optee_msg_arg *arg;
+	static int c_c = 0;
 
 	arg = tee_shm_get_va(shm, 0);
 	if (IS_ERR(arg)) {
@@ -374,6 +380,7 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 		return;
 	}
 
+	pr_err("%s(%d): cmd(%d)\n", __func__, c_c, arg->cmd);
 	switch (arg->cmd) {
 	case OPTEE_MSG_RPC_CMD_GET_TIME:
 		handle_rpc_func_cmd_get_time(arg);
@@ -394,6 +401,7 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 	default:
 		handle_rpc_supp_cmd(ctx, arg);
 	}
+	pr_err("%s(%d): cmd(%d) done\n", __func__, c_c++, arg->cmd);
 }
 
 /**
@@ -411,6 +419,9 @@ void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param,
 	struct optee *optee = tee_get_drvdata(teedev);
 	struct tee_shm *shm;
 	phys_addr_t pa;
+	static int count_hr = 0;
+
+	pr_err("%s(%d): FUNC(%d)\n", __func__, count_hr, OPTEE_SMC_RETURN_GET_RPC_FUNC(param->a0));
 
 	switch (OPTEE_SMC_RETURN_GET_RPC_FUNC(param->a0)) {
 	case OPTEE_SMC_RPC_FUNC_ALLOC:
@@ -449,4 +460,5 @@ void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param,
 	}
 
 	param->a0 = OPTEE_SMC_CALL_RETURN_FROM_RPC;
+	pr_err("%s(%d): FUNC done\n", __func__, count_hr++);
 }
