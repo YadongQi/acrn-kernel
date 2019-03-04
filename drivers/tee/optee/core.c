@@ -517,6 +517,7 @@ struct optee_smc_interface {
     unsigned long args[5];
 };
 
+#if 0
 static void optee_smc(void *args)
 {
     struct optee_smc_interface *p_args = args;
@@ -528,6 +529,25 @@ static void optee_smc(void *args)
      "d"(p_args->args[2]), "b"(p_args->args[3]), "c"(p_args->args[4])
     );
 }
+#else
+#define OPTEE_HCALL_WORLD_SWITCH 0x80000071UL
+static void optee_smc(void *args)
+{
+	struct optee_smc_interface *p_args = args;
+	int ret;
+	register signed long smc_id asm("r8") = OPTEE_HCALL_WORLD_SWITCH;
+	__asm__ __volatile__(
+			"vmcall;"
+			: "+D"(p_args->args[0]), "+S"(p_args->args[1]),
+			  "+d"(p_args->args[2]), "+b"(p_args->args[3]), "=a"(ret)
+			: "r"(smc_id), "D"(p_args->args[0]), "S"(p_args->args[1]),
+			  "d"(p_args->args[2]), "b"(p_args->args[3]), "c"(p_args->args[4])
+	);
+
+	if (ret < 0)
+		pr_err("Failed SMC HC to SWorld!\n");
+}
+#endif
 
 /* Simple wrapper functions to be able to use a function pointer */
 static void optee_smccc_smc(unsigned long a0, unsigned long a1,

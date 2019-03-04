@@ -541,6 +541,8 @@ static bool is_normal_memory(pgprot_t p)
 	return (pgprot_val(p) & L_PTE_MT_MASK) == L_PTE_MT_WRITEALLOC;
 #elif defined(CONFIG_ARM64)
 	return (pgprot_val(p) & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_NORMAL);
+#elif defined(CONFIG_X86_64)
+	return true;
 #else
 #error "Unuspported architecture"
 #endif
